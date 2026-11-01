@@ -2,13 +2,10 @@ import '../../../core/network/api_client.dart';
 import '../models/membership_plan_model.dart';
 
 class MembershipPlanRepository {
-  final ApiClient _apiClient;
 
-  MembershipPlanRepository({ApiClient? apiClient})
-      : _apiClient = apiClient ?? ApiClient();
 
   Future<List<MembershipPlanModel>> getMembershipPlans() async {
-    final response = await _apiClient.dio.get('/membership-plans');
+    final response = await ApiClient.dio.get('/membership-plans');
 
     final body = response.data as Map<String, dynamic>;
 
@@ -28,7 +25,7 @@ class MembershipPlanRepository {
   Future<MembershipPlanModel> createMembershipPlan(
       Map<String, dynamic> data,
       ) async {
-    final response = await _apiClient.dio.post(
+    final response = await ApiClient.dio.post(
       '/membership-plans',
       data: data,
     );
@@ -48,7 +45,7 @@ class MembershipPlanRepository {
       String id,
       Map<String, dynamic> data,
       ) async {
-    final response = await _apiClient.dio.put(
+    final response = await ApiClient.dio.put(
       '/membership-plans/$id',
       data: data,
     );
@@ -65,7 +62,7 @@ class MembershipPlanRepository {
   }
 
   Future<void> activateMembershipPlan(String id) async {
-    final response = await _apiClient.dio.patch(
+    final response = await ApiClient.dio.patch(
       '/membership-plans/$id/activate',
     );
 
@@ -77,7 +74,7 @@ class MembershipPlanRepository {
   }
 
   Future<void> deactivateMembershipPlan(String id) async {
-    final response = await _apiClient.dio.patch(
+    final response = await ApiClient.dio.patch(
       '/membership-plans/$id/deactivate',
     );
 
@@ -89,7 +86,7 @@ class MembershipPlanRepository {
   }
 
   Future<void> deleteMembershipPlan(String id) async {
-    final response = await _apiClient.dio.delete(
+    final response = await ApiClient.dio.delete(
       '/membership-plans/$id',
     );
 
