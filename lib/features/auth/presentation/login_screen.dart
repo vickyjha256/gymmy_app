@@ -2,6 +2,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:gymmy_app/app/main_navigation_screen.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../dashboard/presentation/dashboard_screen.dart';
@@ -82,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-        builder: (_) => const DashboardScreen(),
+        builder: (_) => const MainNavigationScreen(),
         ),
       );
     } on DioException catch (error) {
