@@ -1,9 +1,13 @@
 
 import 'package:flutter/material.dart';
+import 'package:gymmy_app/features/memberships/presentation/screens/create_membership_screen.dart';
 import 'package:gymmy_app/features/memberships/presentation/screens/renew_membership_screen.dart';
 
+import '../../../members/models/member_model.dart';
+import '../../../members/presentation/add_member_screen.dart';
 import '../../data/membership_repository.dart';
 import '../../models/membership_model.dart';
+import 'membership_history_screen.dart';
 
 class MembershipsScreen extends StatefulWidget {
   const MembershipsScreen({super.key});
@@ -58,10 +62,46 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
     }
   }
 
-  List<MembershipModel> get _filteredMemberships {
-    if (_selectedFilter == 'All') return _memberships;
+  List<MembershipModel> get _distinctMemberships {
+    final Map<String, List<MembershipModel>> grouped = {};
 
-    return _memberships
+    for (final membership in _memberships) {
+      grouped.putIfAbsent(membership.memberId, () => []);
+      grouped[membership.memberId]!.add(membership);
+    }
+
+    final result = <MembershipModel>[];
+
+    for (final records in grouped.values) {
+      records.sort((a, b) {
+        final priority = {
+          'ACTIVE': 4,
+          'UPCOMING': 3,
+          'EXPIRED': 2,
+          'CANCELLED': 1,
+        };
+
+        final aPriority = priority[a.status.toUpperCase()] ?? 0;
+        final bPriority = priority[b.status.toUpperCase()] ?? 0;
+
+        if (aPriority != bPriority) {
+          return bPriority.compareTo(aPriority);
+        }
+
+        return b.endDate.compareTo(a.endDate);
+      });
+
+      result.add(records.first);
+    }
+
+    result.sort((a, b) => b.endDate.compareTo(a.endDate));
+    return result;
+  }
+
+  List<MembershipModel> get _filteredMemberships {
+    if (_selectedFilter == 'All') return _distinctMemberships;
+
+    return _distinctMemberships
         .where(
           (membership) =>
       membership.status.toUpperCase() ==
@@ -71,10 +111,60 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
   }
 
   int _count(String status) {
-    return _memberships
+    return _distinctMemberships
         .where((m) => m.status.toUpperCase() == status.toUpperCase())
         .length;
   }
+
+
+
+
+
+  Future<void> _addMembership() async {
+    // Members who already have an ACTIVE membership cannot be selected.
+    final activeMemberIds = _memberships
+        .where((membership) => membership.status.toUpperCase() == 'ACTIVE')
+        .map((membership) => membership.memberId)
+        .toSet();
+
+    // Step 1: Select an existing eligible member.
+    final member = await Navigator.push<MemberModel>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CreateMembershipScreen(
+          activeMemberIds: activeMemberIds,
+        ),
+      ),
+    );
+
+    if (!mounted || member == null) return;
+
+    // Step 2: Assign a membership plan and payment method.
+    final created = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RenewMembershipScreen(
+          memberId: member.id,
+          memberName: member.fullName,
+          isNewMembership: true,
+        ),
+      ),
+    );
+
+    // Step 3: Refresh only after successful membership creation.
+    if (!mounted) return;
+
+    if (created == true) {
+      await _loadMemberships();
+    }
+  }
+
+
+
+
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -159,7 +249,7 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  '${_memberships.length} total memberships',
+                  '${_distinctMemberships.length} members',
                   style: const TextStyle(
                     color: Color(0xFF747F9C),
                     fontSize: 11,
@@ -169,16 +259,20 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: const Icon(
-              Icons.auto_awesome_rounded,
-              color: Color(0xFF536DFE),
-              size: 19,
+          InkWell(
+            onTap: _addMembership,
+            borderRadius: BorderRadius.circular(11),
+            child: Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: const Icon(
+                Icons.add_rounded,
+                color: Color(0xFF536DFE),
+                size: 22,
+              ),
             ),
           ),
         ],
@@ -209,7 +303,7 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
           children: [
             _summaryCard(
               'Total',
-              _memberships.length,
+              _distinctMemberships.length,
               Icons.groups_rounded,
               const Color(0xFF536DFE),
               const Color(0xFFEEF0FF),
@@ -310,7 +404,7 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
         ),
         const Spacer(),
         Text(
-          '${_filteredMemberships.length} results',
+          '${_filteredMemberships.length} members',
           style: const TextStyle(
             color: Color(0xFF9298A7),
             fontSize: 12,
@@ -521,18 +615,31 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
 
           Row(
             children: [
+              // TextButton(
+              //   onPressed: () => _showMembershipDetails(membership),
+              //   child: const Text(
+              //     'View details',
+              //     style: TextStyle(
+              //       color: Color(0xFF536DFE),
+              //       fontWeight: FontWeight.w700,
+              //     ),
+              //   ),
+              // ),
+
               TextButton(
-                onPressed: () => _showMembershipDetails(membership),
+                onPressed: () => _openMembershipHistory(membership),
                 child: const Text(
-                  'View details',
+                  'View History',
                   style: TextStyle(
                     color: Color(0xFF536DFE),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
+
+
               const Spacer(),
-              if (membership.status.toUpperCase() != 'CANCELLED')
+              if (membership.status.toUpperCase() != 'ACTIVE')
                 TextButton(
                   onPressed: () => _openRenewal(membership),
                   child: const Text(
@@ -543,6 +650,9 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
                     ),
                   ),
                 ),
+
+              // const SizedBox(width: 5,),
+
               if (membership.status.toUpperCase() == 'ACTIVE')
                 TextButton(
                   onPressed: () => _cancelMembership(membership),
@@ -712,6 +822,26 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
     );
   }
 
+
+
+
+  Future<void> _openMembershipHistory(
+      MembershipModel membership,
+      ) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MembershipHistoryScreen(
+          memberId: membership.memberId,
+          memberName: membership.memberName,
+          memberPhone: membership.memberPhone,
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+    await _loadMemberships();
+  }
 
 
 

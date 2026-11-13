@@ -8,11 +8,13 @@ import '../../data/membership_repository.dart';
 class RenewMembershipScreen extends StatefulWidget {
   final String memberId;
   final String memberName;
+  final bool isNewMembership;
 
   const RenewMembershipScreen({
     super.key,
     required this.memberId,
     required this.memberName,
+    this.isNewMembership = false,
   });
 
   @override
@@ -97,8 +99,8 @@ class _RenewMembershipScreenState extends State<RenewMembershipScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
-        title: const Text(
-          'Renew Membership',
+        title: Text(
+          '${widget.isNewMembership ? "Assign New" : "Renew"} Membership',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
         backgroundColor: const Color(0xFFF5F7FB),
@@ -131,8 +133,8 @@ class _RenewMembershipScreenState extends State<RenewMembershipScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Renewing membership for',
+                      Text(
+                        '${widget.isNewMembership ? "Assigning" : "Renewing"} membership for',
                         style: TextStyle(
                           color: Color(0xFF747F9C),
                           fontSize: 12,
@@ -268,8 +270,8 @@ class _RenewMembershipScreenState extends State<RenewMembershipScreen> {
                   ? const CircularProgressIndicator(
                 color: Colors.white,
               )
-                  : const Text(
-                'Confirm Renewal',
+                  : Text(
+                widget.isNewMembership ? "Add Membership" : 'Confirm Renewal',
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
                 ),
