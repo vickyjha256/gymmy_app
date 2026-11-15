@@ -1,6 +1,6 @@
 
 import 'package:flutter/material.dart';
-import 'package:gymmy_app/features/memberships/presentation/screens/create_membership_screen.dart';
+import 'package:gymmy_app/features/memberships/presentation/screens/select_member_screen.dart';
 import 'package:gymmy_app/features/memberships/presentation/screens/renew_membership_screen.dart';
 
 import '../../../members/models/member_model.dart';
@@ -32,10 +32,20 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
     'Cancelled',
   ];
 
+  final TextEditingController _searchController = TextEditingController();
+
+
+
   @override
   void initState() {
     super.initState();
     _loadMemberships();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadMemberships() async {
@@ -99,15 +109,20 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
   }
 
   List<MembershipModel> get _filteredMemberships {
-    if (_selectedFilter == 'All') return _distinctMemberships;
+    final query = _searchController.text.trim().toLowerCase();
 
-    return _distinctMemberships
-        .where(
-          (membership) =>
-      membership.status.toUpperCase() ==
-          _selectedFilter.toUpperCase(),
-    )
-        .toList();
+    return _distinctMemberships.where((membership) {
+      final matchesStatus = _selectedFilter == 'All' ||
+          membership.status.toUpperCase() ==
+              _selectedFilter.toUpperCase();
+
+      final matchesSearch = query.isEmpty ||
+          membership.memberName.toLowerCase().contains(query) ||
+          membership.memberPhone.toLowerCase().contains(query) ||
+          membership.planName.toLowerCase().contains(query);
+
+      return matchesStatus && matchesSearch;
+    }).toList();
   }
 
   int _count(String status) {
@@ -118,28 +133,30 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
 
 
 
-
-
   Future<void> _addMembership() async {
-    // Members who already have an ACTIVE membership cannot be selected.
-    final activeMemberIds = _memberships
-        .where((membership) => membership.status.toUpperCase() == 'ACTIVE')
+    // A member is ineligible if any membership is not EXPIRED or CANCELLED.
+    // This excludes ACTIVE, UPCOMING and any unexpected status.
+    const allowedStatuses = {'EXPIRED', 'CANCELLED'};
+
+    final ineligibleMemberIds = _memberships
+        .where(
+          (membership) =>
+      !allowedStatuses.contains(membership.status.toUpperCase()),
+    )
         .map((membership) => membership.memberId)
         .toSet();
 
-    // Step 1: Select an existing eligible member.
     final member = await Navigator.push<MemberModel>(
       context,
       MaterialPageRoute(
-        builder: (_) => CreateMembershipScreen(
-          activeMemberIds: activeMemberIds,
+        builder: (_) => SelectMemberScreen(
+          ineligibleMemberIds: ineligibleMemberIds,
         ),
       ),
     );
 
     if (!mounted || member == null) return;
 
-    // Step 2: Assign a membership plan and payment method.
     final created = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
@@ -151,7 +168,6 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
       ),
     );
 
-    // Step 3: Refresh only after successful membership creation.
     if (!mounted) return;
 
     if (created == true) {
@@ -189,6 +205,8 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
                     _buildOverview(),
                     const SizedBox(height: 28),
                     _buildSectionHeading(),
+                    const SizedBox(height: 14),
+                    _buildMembershipSearch(),
                     const SizedBox(height: 14),
                     _buildFilters(),
                     const SizedBox(height: 18),
@@ -457,6 +475,37 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
     );
   }
 
+  Widget _buildMembershipSearch() {
+    return TextField(
+      controller: _searchController,
+      onChanged: (_) => setState(() {}),
+      decoration: InputDecoration(
+        hintText: 'Search by member name, phone or plan',
+        prefixIcon: const Icon(Icons.search_rounded),
+        suffixIcon: _searchController.text.isEmpty
+            ? null
+            : IconButton(
+          onPressed: () {
+            _searchController.clear();
+            setState(() {});
+          },
+          icon: const Icon(Icons.close_rounded),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(vertical: 15),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+        ),
+      ),
+    );
+  }
+
   Widget _buildMembershipCard(MembershipModel membership) {
     final name = membership.memberName.trim();
     final initials = name.isEmpty
@@ -639,7 +688,7 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
 
 
               const Spacer(),
-              if (membership.status.toUpperCase() != 'ACTIVE')
+              if (membership.status.toUpperCase() != 'ACTIVE' && membership.status.toUpperCase() != 'UPCOMING')
                 TextButton(
                   onPressed: () => _openRenewal(membership),
                   child: const Text(
@@ -863,26 +912,69 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
     }
   }
 
+
+
   Future<void> _cancelMembership(MembershipModel membership) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        icon: const Icon(
+          Icons.event_busy_rounded,
+          size: 32,
+          color: Colors.red,
+        ),
         title: const Text('Cancel membership?'),
         content: Text(
-          'Are you sure you want to cancel ${membership.memberName}\'s membership?',
+          'Are you sure you want to cancel ${membership.memberName}\'s membership? '
+              'The membership record will remain in the history.',
+          textAlign: TextAlign.center,
         ),
+        actionsAlignment: MainAxisAlignment.center,
+        actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Keep membership'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE05A65),
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Cancel membership'),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF344054),
+                    side: const BorderSide(color: Color(0xFFD0D5DD)),
+                    padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Keep',
+                    maxLines: 1,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Yes, Cancel',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -896,7 +988,9 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Membership cancelled successfully')),
+        const SnackBar(
+          content: Text('Membership cancelled successfully'),
+        ),
       );
 
       await _loadMemberships();
@@ -908,6 +1002,7 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
       );
     }
   }
+
 
   void _showMembershipDetails(MembershipModel membership) {
     showModalBottomSheet(

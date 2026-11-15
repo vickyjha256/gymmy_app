@@ -6,19 +6,19 @@ import 'package:flutter/material.dart';
 import '../../../members/data/member_repository.dart';
 import '../../../members/models/member_model.dart';
 
-class CreateMembershipScreen extends StatefulWidget {
-  final Set<String> activeMemberIds;
+class SelectMemberScreen extends StatefulWidget {
+  final Set<String> ineligibleMemberIds;
 
-  const CreateMembershipScreen({
+  const SelectMemberScreen({
     super.key,
-    required this.activeMemberIds,
+    required this.ineligibleMemberIds,
   });
 
   @override
-  State<CreateMembershipScreen> createState() => _CreateMembershipScreenState();
+  State<SelectMemberScreen> createState() => _SelectMemberScreenState();
 }
 
-class _CreateMembershipScreenState extends State<CreateMembershipScreen> {
+class _SelectMemberScreenState extends State<SelectMemberScreen> {
   final MemberRepository _repository = MemberRepository();
   final TextEditingController _searchController = TextEditingController();
 
@@ -71,9 +71,8 @@ class _CreateMembershipScreenState extends State<CreateMembershipScreen> {
       // Exclude members who already have an ACTIVE membership.
       final eligibleMembers = result
           .where(
-            (member) => !widget.activeMemberIds.contains(member.id),
-      )
-          .toList();
+            (member) => !widget.ineligibleMemberIds.contains(member.id),
+      ).toList();
 
       setState(() {
         _members = eligibleMembers;
