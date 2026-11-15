@@ -10,6 +10,7 @@ class MemberRepository {
     int page = 1,
     int limit = 10,
     String search = '',
+    String? membershipEligibility,
   }) async {
     final response = await ApiClient.dio.get(
       '/members',
@@ -17,6 +18,8 @@ class MemberRepository {
         'page': page,
         'limit': limit,
         if (search.trim().isNotEmpty) 'search': search.trim(),
+        if (membershipEligibility != null)
+          'membershipEligibility': membershipEligibility,
       },
     );
 

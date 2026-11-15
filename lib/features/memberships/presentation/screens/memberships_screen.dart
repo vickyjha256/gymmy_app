@@ -134,24 +134,10 @@ class _MembershipsScreenState extends State<MembershipsScreen> {
 
 
   Future<void> _addMembership() async {
-    // A member is ineligible if any membership is not EXPIRED or CANCELLED.
-    // This excludes ACTIVE, UPCOMING and any unexpected status.
-    const allowedStatuses = {'EXPIRED', 'CANCELLED'};
-
-    final ineligibleMemberIds = _memberships
-        .where(
-          (membership) =>
-      !allowedStatuses.contains(membership.status.toUpperCase()),
-    )
-        .map((membership) => membership.memberId)
-        .toSet();
-
     final member = await Navigator.push<MemberModel>(
       context,
       MaterialPageRoute(
-        builder: (_) => SelectMemberScreen(
-          ineligibleMemberIds: ineligibleMemberIds,
-        ),
+        builder: (_) => const SelectMemberScreen(),
       ),
     );
 

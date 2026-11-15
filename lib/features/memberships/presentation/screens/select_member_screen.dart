@@ -7,11 +7,9 @@ import '../../../members/data/member_repository.dart';
 import '../../../members/models/member_model.dart';
 
 class SelectMemberScreen extends StatefulWidget {
-  final Set<String> ineligibleMemberIds;
 
   const SelectMemberScreen({
     super.key,
-    required this.ineligibleMemberIds,
   });
 
   @override
@@ -51,6 +49,7 @@ class _SelectMemberScreenState extends State<SelectMemberScreen> {
     );
   }
 
+
   Future<void> _loadMembers({String search = ''}) async {
     final requestId = ++_requestId;
 
@@ -64,29 +63,27 @@ class _SelectMemberScreenState extends State<SelectMemberScreen> {
         page: 1,
         limit: 50,
         search: search,
+        membershipEligibility: 'AVAILABLE',
       );
 
       if (!mounted || requestId != _requestId) return;
 
-      // Exclude members who already have an ACTIVE membership.
-      final eligibleMembers = result
-          .where(
-            (member) => !widget.ineligibleMemberIds.contains(member.id),
-      ).toList();
-
       setState(() {
-        _members = eligibleMembers;
+        _members = result;
         _isLoading = false;
       });
     } catch (e) {
       if (!mounted || requestId != _requestId) return;
 
       setState(() {
-        _error = 'Unable to load members. Please try again.';
+        _error = 'Unable to load eligible members. Please try again.';
         _isLoading = false;
       });
     }
   }
+
+
+
 
   Widget _buildEmptyState() {
     final hasSearch = _searchController.text.trim().isNotEmpty;
